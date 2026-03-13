@@ -252,8 +252,6 @@ app.get('/healthz', (_req, res) => {
   res.status(statusCode).json(body);
 });
 
-ros.connectLoop();
-
 // ── RouterOS connection status broadcasting ─────────────────────────────────
 // Track the last known ROS connection state so newly connected browser clients
 // immediately receive it, rather than waiting for the next status change event.
@@ -266,13 +264,13 @@ function broadcastRosStatus(connected, reason) {
 
 ros.on('connected', () => broadcastRosStatus(true));
 ros.on('close',     () => broadcastRosStatus(false, 'RouterOS connection closed'));
-ros.on('error',     (e) => {
+ros.on('connectionError', (e) => {
   const msg = e && e.message ? e.message : String(e);
   // Build a clear, human-readable reason from raw network errors
   let reason = msg;
-  if (/ECONNREFUSED/.test(msg))  reason = `Connection refused — is RouterOS reachable at ${process.env.ROUTER_HOST}?`;
+  if (/ECONNREFUSED/.test(msg))  reason = `Connection refused — is RouterOS reachable at ${_cfg.routerHost}?`;
   else if (/ETIMEDOUT/.test(msg) || /timed out/i.test(msg)) reason = `Connection timed out — check ROUTER_HOST and firewall rules`;
-  else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg))    reason = `Host not found — check ROUTER_HOST setting (${process.env.ROUTER_HOST})`;
+  else if (/ENOTFOUND/.test(msg) || /ENOENT/.test(msg))    reason = `Host not found — check ROUTER_HOST setting (${_cfg.routerHost})`;
   else if (/ECONNRESET/.test(msg)) reason = 'Connection reset by router';
   else if (/certificate/i.test(msg)) reason = 'TLS certificate error — try setting ROUTER_TLS_INSECURE=true';
   else if (/authentication/i.test(msg) || /login/i.test(msg)) reason = 'Authentication failed — check ROUTER_USER and ROUTER_PASS';
@@ -313,6 +311,7 @@ async function startCollectors() {
 }
 
 ros.on('connected', () => startCollectors());
+ros.connectLoop();
 
 async function sendInitialState(socket) {
   // Send traffic:history FIRST — before any async awaits — so the client

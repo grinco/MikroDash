@@ -17,7 +17,6 @@ class ROS extends EventEmitter {
     super();
     // ~11 collectors × 2 events each = 22 listeners minimum
     this.setMaxListeners(30);
-    this.on('error', () => {});
     this.cfg = cfg;
     this.conn = null;
     this.connected = false;
@@ -43,6 +42,12 @@ class ROS extends EventEmitter {
     return new RouterOSAPI(opts);
   }
 
+  _emitConnectionError(err) {
+    this.emit('connectionError', err);
+    // Preserve compatibility for any existing explicit 'error' listeners
+    if (this.listenerCount('error') > 0) this.emit('error', err);
+  }
+
   async connectLoop() {
     while (!this._stopping) {
       try {
@@ -51,7 +56,7 @@ class ROS extends EventEmitter {
         this.conn.on('error', (err) => {
           console.error('[ROS] error:', err && err.message ? err.message : err);
           this.connected = false;
-          this.emit('error', err);
+          this._emitConnectionError(err);
         });
 
         this.conn.on('close', () => {
@@ -74,7 +79,7 @@ class ROS extends EventEmitter {
       } catch (e) {
         this.connected = false;
         console.error('[ROS] connect failed:', e && e.message ? e.message : e);
-        this.emit('error', e);
+        this._emitConnectionError(e);
       }
 
       if (this._stopping) break;
