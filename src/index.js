@@ -274,6 +274,9 @@ ros.on('connectionError', (e) => {
   else if (/ECONNRESET/.test(msg)) reason = 'Connection reset by router';
   else if (/certificate/i.test(msg)) reason = 'TLS certificate error — try setting ROUTER_TLS_INSECURE=true';
   else if (/authentication/i.test(msg) || /login/i.test(msg)) reason = 'Authentication failed — check ROUTER_USER and ROUTER_PASS';
+  else if (_cfg.routerTls && /RosException/.test(msg)) {
+    reason = 'TLS handshake failed before authentication. ROUTER_TLS_INSECURE=true only skips certificate validation; check that RouterOS api-ssl has a valid server certificate and compatible TLS settings.';
+  }
   broadcastRosStatus(false, reason);
 });
 
